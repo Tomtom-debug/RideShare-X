@@ -140,7 +140,7 @@ def request_ride(ride_id):
     body = json.loads(request.data)
     user_id = body.get("user_id")
     #check for missing fields 
-    if None in (user_id):
+    if user_id is None:
         return failure_response("Not found")
     # check if ride and user exist
     ride = Rides.query.filter_by(id=ride_id).first()
