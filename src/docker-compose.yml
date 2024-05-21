@@ -1,0 +1,11 @@
+version: "3"
+
+services:
+  cms:
+    image: "samueltawiah/rideshare-X"
+    env_file: .env
+    ports:
+      - "8000:8000"
+    #command: sh start_server.sh
+    #volumes:
+      #- .:/app
