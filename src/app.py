@@ -1,8 +1,8 @@
 from db import db, Users, Rides, Bookings
 from flask import Flask, request
 import json
-import re
 from datetime import datetime
+import os
 # comment
 
 app = Flask(__name__)
