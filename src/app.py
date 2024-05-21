@@ -25,7 +25,7 @@ def failure_response(message, code=404):
     return json.dumps({"error": message}), code
 
 # your routes here
-@app.route("/rideshare/")
+@app.route("/")
 def hello_world():
     return ("Hello World")
 
@@ -139,15 +139,12 @@ def request_ride(ride_id):
     # getting request data
     body = json.loads(request.data)
     user_id = body.get("user_id")
-    print("here")
     #check for missing fields 
-    if None in (ride_id,user_id):
+    if None in (user_id):
         return failure_response("Not found")
     # check if ride and user exist
     ride = Rides.query.filter_by(id=ride_id).first()
-    print("here2")
     user = Users.query.filter_by(id=user_id).first()
-    print("here3")
     if not ride or not user:
         return failure_response("Task not found")
     #check if there are available seats 
@@ -156,11 +153,9 @@ def request_ride(ride_id):
     #create new booking if there are seats 
     time = datetime.now()
     new_booking = Bookings(ride_id=ride_id,passenger_id=user_id,booking_time=time)
-    print("here4")
     ride.available_seats -= 1
     db.session.add(new_booking)
     db.session.commit()
-    print("here5")
     return success_response(new_booking.serialize())
 
 @app.route("/rideshare/<int:driver_id>/")
