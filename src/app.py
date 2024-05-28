@@ -2,6 +2,7 @@ from db import db, Users, Rides, Bookings
 from flask import Flask, request
 import json
 from datetime import datetime
+import users_dao
 import os
 # comment
 
@@ -24,32 +25,40 @@ def success_response(data, code=200):
 def failure_response(message, code=404):
     return json.dumps({"error": message}), code
 
-# your routes here
+
+def extract_token(request):
+    """
+    Helper function that extracts the token from the header of a request
+    """
+    auth_header= request.header.get("Authorization")
+    if auth_header is None:
+        return False, failure_response("Missing Authorization header")
+    
+    #Bearer <token>
+    bearer_token = auth_header.replace("Bearer", "").strip()
+    if bearer_token is None:
+        return False, failure_response("Invalid Authorization header")
+    
+    return True, bearer_token
+    
+def check_token(request):
+    """
+    Helper function for verifying a session token
+    """
+    success,response = extract_token(request)
+    if not success:
+        return False,response 
+    return True, response
+
+#routes here
 @app.route("/")
 def hello_world():
     return ("Hello World")
 
-@app.route("/rideshare/delete/<int:ride_id>/", methods=["DELETE"])
-def delete_a_ride(ride_id):
+@app.route("/rideshare/register/", methods = ["POST"])
+def register_account():
     """
-    End point for delete a ride
-    """
-
-    ride = Rides.query.filter_by(id = ride_id).first()
-
-
-
-    if ride is None:
-        return failure_response("Ride not found")
-    db.session.delete(ride)
-    db.session.commit()
-    return success_response(ride.serialize())
-
-
-@app.route("/rideshare/authenticate/", methods = ["POST"])
-def create_user():
-    """
-    End point to create and authenticate email address of both old and new users
+    Endpoint for registering a new user
     """
     body = json.loads(request.data)
     username = body.get("username")
@@ -64,17 +73,98 @@ def create_user():
     if not username.lower().endswith("@cornell.edu"):
         return failure_response("Invalid username",400)
     
-    #checking if a user already exist 
-    user = Users.query.filter_by(username=username).first()
-    if not user is None:
-        return failure_response("User already exist",400)
+    created,user = users_dao.create_user(first_name,last_name,username,password)
+    if not created:
+        return failure_response("User exist already")
+    return success_response(user.serialize(),201)
+
+@app.route("/login/", methods=["POST"])
+def login():
+    """
+    Endpoint for logging in a user
+    """
+    body = json.loads(request.data)
+    username = body.get("username")
+    password = body.get("password")
+    # Check if all required fields are present
+    if None in (username, password):
+        return failure_response("Missing a field",400)
     
-    #creating a new user if it doesn't exist
-    new_user = Users(username = username, password=password,
-                    first_name=first_name,last_name=last_name)
-    db.session.add(new_user)
+    success,user = users_dao.verify_credentials(username,password)
+    if not success:
+        return failure_response("Invalid credentials")
+    user.renew_session()
     db.session.commit()
-    return success_response(new_user.serialize(),201)
+    return success_response(user.serialize())
+
+
+@app.route("/session/", methods=["POST"])
+def refresh_session():
+    """
+    Endpoint for updating a user's session
+    """
+    success,response = check_token(request)
+    if not success:
+        return response
+    refresh_token = response
+
+    try:
+        user = users_dao.update_session(refresh_token)
+
+    except Exception as e:
+        return failure_response("Invalid refresh token")
+    return success_response(user.serialize())
+
+
+@app.route("/secret/", methods=["GET"])
+def secret_message():
+    """
+    Endpoint for verifying a session token and returning a secret message
+
+    In your project, you will use the same logic for any endpoint that needs 
+    authentication
+    """
+    success,response = check_token(request)
+    if success is None:
+        return response
+    session_token = response
+    possible_user = users_dao.get_user_by_session_token(session_token).first()
+    if not possible_user or not possible_user.verify_session_token(session_token):
+        return False, failure_response("Invalid session token")
+    return success_response({"message":"Hello " + possible_user.first_name})
+
+
+@app.route("/logout/", methods=["POST"])
+def logout():
+    """
+    Endpoint for logging out a user
+    """
+    success,response = check_token(request)
+    if not success:
+        return response
+    session_token=response
+    possible_user = users_dao.get_user_by_session_token(session_token).first()
+    if not possible_user or not possible_user.verify_session_token(session_token):
+        return False, failure_response("Invalid session token")
+    possible_user.session_expiration = datetime.datetime.now()
+    db.session.commit()
+    return success_response({"message":"You have been logged out"})
+
+
+@app.route("/rideshare/delete/<int:ride_id>/", methods=["DELETE"])
+def delete_a_ride(ride_id):
+    """
+    End point for delete a ride
+    """
+
+    ride = Rides.query.filter_by(id = ride_id).first()
+
+    if ride is None:
+        return failure_response("Ride not found")
+    db.session.delete(ride)
+    db.session.commit()
+    return success_response(ride.serialize())
+
     
 
 @app.route("/rideshare/rides/")
@@ -91,7 +181,7 @@ def get_all_users():
     '''
     End point for getting all the users
     '''
-    return success_response({"users":[users.serialize() for users in Users.query.all()]})
+    return success_response({"users":[users.special_serialize() for users in Users.query.all()]})
 
 @app.route("/rideshare/rides/<int:ride_id>/")
 def get_specific_ride(ride_id):
@@ -105,11 +195,19 @@ def get_specific_ride(ride_id):
     return success_response(ride.serialize())
 
 #
-@app.route("/rideshare/addtrip/<int:driver_id>/", methods = ["POST"])
-def add_ride(driver_id):
+@app.route("/rideshare/addtrip/", methods = ["POST"])
+def add_ride():
     """
     add a trip
     """
+    success,response = check_token(request)
+    if not success:
+        return response
+    session_token=response
+    possible_user = users_dao.get_user_by_session_token(session_token).first()
+    if not possible_user or not possible_user.verify_session_token(session_token):
+        return False, failure_response("Invalid session token")
+    driver_id = possible_user.id
     body = json.loads(request.data)
     if "origin" not in body or "destination" not in body or "departure_time" not in body or "available_seats" not in body:
         return failure_response("Missing input", 400)
@@ -158,11 +256,19 @@ def request_ride(ride_id):
     db.session.commit()
     return success_response(new_booking.serialize())
 
-@app.route("/rideshare/<int:driver_id>/")
-def request_ride_by_driver(driver_id):
+@app.route("/rideshare/rides/driver/")
+def request_ride_by_driver():
     """
     Endpoint for getting all rides for a driver 
     """
+    success,response = check_token(request)
+    if not success:
+        return response
+    session_token=response
+    possible_user = users_dao.get_user_by_session_token(session_token).first()
+    if not possible_user or not possible_user.verify_session_token(session_token):
+        return False, failure_response("Invalid session token")
+    driver_id = possible_user.id
     rides=[]
     rides_driver = Rides.query.filter_by(driver_id=driver_id).all()
     for ride in rides_driver:

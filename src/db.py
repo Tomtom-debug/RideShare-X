@@ -1,6 +1,10 @@
+import datetime
+import hashlib
+import os
 
 from flask_sqlalchemy import SQLAlchemy
 from time import strftime
+import bcrypt 
 
 db = SQLAlchemy()
 
@@ -12,10 +16,18 @@ class Users(db.Model):
     """
     __tablename__ = "users"
     id = db.Column(db.Integer, primary_key=True,autoincrement=True)
-    username = db.Column(db.String, nullable=False)
+
+    # User information
+    username = db.Column(db.String, nullable=False, unique=True)
     first_name = db.Column(db.String, nullable=False)
     last_name = db.Column(db.String, nullable=False)
-    password = db.Column(db.String, nullable=False)
+    password_digest = db.Column(db.String, nullable=False)
+
+
+    # Session information
+    session_token = db.Column(db.String, nullable=False, unique=True)
+    session_expiration = db.Column(db.DateTime, nullable=False)
+    refresh_token = db.Column(db.String, nullable=False, unique=True)
 
     # Relationship to Rides
     rides = db.relationship('Rides', backref='driver',  cascade="delete")
@@ -30,16 +42,55 @@ class Users(db.Model):
         self.username = kwargs.get("username")
         self.first_name = kwargs.get("first_name")
         self.last_name = kwargs.get("last_name")
-        self.password = kwargs.get("password")
+        self.password_digest = bcrypt.hashpw(kwargs.get("password").encode("utf8"), bcrypt.gensalt(rounds=13))
+        self.renew_session()
+
+    def _urlsafe_base_64(self):
+        """
+        Randomly generates hashed tokens (used for session/update tokens)
+        """
+        return hashlib.sha1(os.urandom(64)).hexdigest()
+
+    def renew_session(self):
+        """
+        Renews the sessions, i.e.
+        1. Creates a new session token
+        2. Sets the expiration time of the session to be a day from now
+        3. Creates a new update token
+        """
+        self.session_token = self._urlsafe_base_64()
+        self.session_expiration = datetime.datetime.now() + datetime.timedelta(days=1)
+        self.refresh_token = self._urlsafe_base_64()
+
+    def verify_password(self, password):
+        """
+        Verifies the password of a user
+        """
+        return bcrypt.checkpw(password.encode("utf8"), self.password_digest)
     
+    def verify_session_token(self, session_token):
+        """
+        Verifies the session token of a user
+        """
+        return session_token == self.session_token and datetime.datetime.now() < self.session_expiration
+    
+    def verify_update_token(self, refresh_token):
+        """
+        Verifies the update token of a user
+        """
+        return refresh_token == self.refresh_token
+
     def serialize(self):
-
         return {
-            "id": self.id,
-            "username": self.username,
-            "first_name": self.first_name,
-            "last_name": self.last_name,
-
+            "session_token":self.session_token,
+            "session_expiration": str(self.session_expiration),
+            "refresh_token": self.refresh_token
+        }
+    
+    def special_serialize(self):
+        return {
+            "first_name":self.first_name,
+            "last_name":self.last_name
         }
 
 class Rides(db.Model):
