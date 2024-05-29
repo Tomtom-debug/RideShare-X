@@ -133,9 +133,6 @@ def refresh_session():
 def secret_message():
     """
     Endpoint for verifying a session token and returning a secret message
-
-    In your project, you will use the same logic for any endpoint that needs 
-    authentication
     """
     success,response = cache_token(request)
     if not success:
@@ -282,6 +279,30 @@ def all_rides_by_driver():
         rides.append(ride.serialize())
     return success_response({"rides":rides})
 
+@app.route("/rideshare/rides/search/", methods=["GET"])
+def search_rides():
+    body = json.loads(request.data)
+    destination = body.get("destination")
+    if destination is None:
+        return failure_response("Missing a field")
+    
+    rides = Rides.query.filter(Rides.destination.ilike(f"%{destination}%")).all()
+    
+    if not rides:
+        return failure_response("No rides found for the given destination")
+    
+    available_rides = []
+    time = datetime.now()
+    for ride in rides:
+        try:
+            departure_time = datetime.strptime(ride.departure_time, '%m-%d-%y %H:%M')
+        except ValueError:
+            return failure_response("Invalid departure time format in database")
+        if departure_time > time:
+            available_rides.append(ride.serialize())
+    
+    return success_response({"available rides":rides})
+        
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8000, debug=True)

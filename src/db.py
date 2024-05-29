@@ -12,7 +12,7 @@ db = SQLAlchemy()
 
 class Users(db.Model):
     """
-    Course Model
+    User Model
     """
     __tablename__ = "users"
     id = db.Column(db.Integer, primary_key=True,autoincrement=True)
