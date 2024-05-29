@@ -13,7 +13,7 @@
 				"header": [],
 				"body": {
 					"mode": "raw",
-					"raw": "{\n    \"username\": \"khfh@cornell.edu\",\n    \"password\": \"nyciamcoming\",\n    \"first_name\": \"Test1\",\n    \"last_name\": \"test\"\n}",
+					"raw": "{\n    \"username\": \"set33@cornell.edu\",\n    \"password\": \"nyciamcoming\",\n    \"first_name\": \"Test1\",\n    \"last_name\": \"test\"\n}",
 					"options": {
 						"raw": {
 							"language": "json"
@@ -21,18 +21,17 @@
 					}
 				},
 				"url": {
-					"raw": "http://127.0.0.1:8000/rideshare/authenticate/",
+					"raw": "http://34.48.59.255/rideshare/register/",
 					"protocol": "http",
 					"host": [
-						"127",
-						"0",
-						"0",
-						"1"
+						"34",
+						"48",
+						"59",
+						"255"
 					],
-					"port": "8000",
 					"path": [
 						"rideshare",
-						"authenticate",
+						"register",
 						""
 					]
 				}
@@ -45,15 +44,14 @@
 				"method": "GET",
 				"header": [],
 				"url": {
-					"raw": "http://127.0.0.1:8000/rideshare/users/",
+					"raw": "http://34.48.59.255/rideshare/users/",
 					"protocol": "http",
 					"host": [
-						"127",
-						"0",
-						"0",
-						"1"
+						"34",
+						"48",
+						"59",
+						"255"
 					],
-					"port": "8000",
 					"path": [
 						"rideshare",
 						"users",
@@ -66,11 +64,21 @@
 		{
 			"name": "add trip",
 			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "09ae5b159a545dff3c89dc6140d3ba06d65cf266",
+							"type": "string"
+						}
+					]
+				},
 				"method": "POST",
 				"header": [],
 				"body": {
 					"mode": "raw",
-					"raw": "{\n    \"origin\": \"boston\",\n    \"destination\": \"NYC\",\n    \"departure_time\": \"05-20-14 12:00\",\n    \"available_seats\": 4\n}",
+					"raw": "{\n    \"origin\": \"boston\",\n    \"destination\": \"NYC\",\n    \"departure_time\": \"05-20-25 12:00\",\n    \"available_seats\": 4\n}",
 					"options": {
 						"raw": {
 							"language": "json"
@@ -78,19 +86,17 @@
 					}
 				},
 				"url": {
-					"raw": "http://127.0.0.1:8000/rideshare/addtrip/1/",
+					"raw": "http://34.48.59.255/rideshare/addtrip/",
 					"protocol": "http",
 					"host": [
-						"127",
-						"0",
-						"0",
-						"1"
+						"34",
+						"48",
+						"59",
+						"255"
 					],
-					"port": "8000",
 					"path": [
 						"rideshare",
 						"addtrip",
-						"1",
 						""
 					]
 				}
@@ -103,15 +109,14 @@
 				"method": "GET",
 				"header": [],
 				"url": {
-					"raw": "http://127.0.0.1:8000/rideshare/rides/",
+					"raw": "http://34.48.59.255/rideshare/rides/",
 					"protocol": "http",
 					"host": [
-						"127",
-						"0",
-						"0",
-						"1"
+						"34",
+						"48",
+						"59",
+						"255"
 					],
-					"port": "8000",
 					"path": [
 						"rideshare",
 						"rides",
@@ -124,11 +129,21 @@
 		{
 			"name": "request rides",
 			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "62aee6d946ec28d7f7a69d16d347f911992a99e5",
+							"type": "string"
+						}
+					]
+				},
 				"method": "POST",
 				"header": [],
 				"body": {
 					"mode": "raw",
-					"raw": "{\n    \"user_id\": 2\n}",
+					"raw": "",
 					"options": {
 						"raw": {
 							"language": "json"
@@ -136,18 +151,17 @@
 					}
 				},
 				"url": {
-					"raw": "http://127.0.0.1:8000/rideshare/1/requestride/",
+					"raw": "http://34.48.59.255/rideshare/2/requestride/",
 					"protocol": "http",
 					"host": [
-						"127",
-						"0",
-						"0",
-						"1"
+						"34",
+						"48",
+						"59",
+						"255"
 					],
-					"port": "8000",
 					"path": [
 						"rideshare",
-						"1",
+						"2",
 						"requestride",
 						""
 					]
@@ -158,21 +172,31 @@
 		{
 			"name": "get rides for a specific driver_id",
 			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "09ae5b159a545dff3c89dc6140d3ba06d65cf266",
+							"type": "string"
+						}
+					]
+				},
 				"method": "GET",
 				"header": [],
 				"url": {
-					"raw": "http://127.0.0.1:8000/rideshare/1/",
+					"raw": "http://34.48.59.255/rideshare/rides/driver/",
 					"protocol": "http",
 					"host": [
-						"127",
-						"0",
-						"0",
-						"1"
+						"34",
+						"48",
+						"59",
+						"255"
 					],
-					"port": "8000",
 					"path": [
 						"rideshare",
-						"1",
+						"rides",
+						"driver",
 						""
 					]
 				}
@@ -185,19 +209,185 @@
 				"method": "DELETE",
 				"header": [],
 				"url": {
-					"raw": "http://127.0.0.1:8000/rideshare/delete/1/",
+					"raw": "http://34.48.59.255/rideshare/delete/1/",
 					"protocol": "http",
 					"host": [
-						"127",
-						"0",
-						"0",
-						"1"
+						"34",
+						"48",
+						"59",
+						"255"
 					],
-					"port": "8000",
 					"path": [
 						"rideshare",
 						"delete",
 						"1",
+						""
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "http://34.48.59.255/rideshare/rides/search/",
+			"protocolProfileBehavior": {
+				"disableBodyPruning": true
+			},
+			"request": {
+				"method": "GET",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"destination\":\"NYC\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://34.48.59.255/rideshare/rides/search/",
+					"protocol": "http",
+					"host": [
+						"34",
+						"48",
+						"59",
+						"255"
+					],
+					"path": [
+						"rideshare",
+						"rides",
+						"search",
+						""
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "http://34.48.59.255/rideshare/logout/",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "62aee6d946ec28d7f7a69d16d347f911992a99e5",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [],
+				"url": {
+					"raw": "http://34.48.59.255/rideshare/logout/",
+					"protocol": "http",
+					"host": [
+						"34",
+						"48",
+						"59",
+						"255"
+					],
+					"path": [
+						"rideshare",
+						"logout",
+						""
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "http://34.48.59.255/rideshare/login/",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n   \"username\": \"set33@cornell.edu\",\n    \"password\": \"nyciamcoming\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://34.48.59.255/rideshare/login/",
+					"protocol": "http",
+					"host": [
+						"34",
+						"48",
+						"59",
+						"255"
+					],
+					"path": [
+						"rideshare",
+						"login",
+						""
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "http://34.48.59.255/rideshare/session/",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "4a4bb3f5aa7ce9d13e2c89f9c81e1ab12ff42a31",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [],
+				"url": {
+					"raw": "http://34.48.59.255/rideshare/session/",
+					"protocol": "http",
+					"host": [
+						"34",
+						"48",
+						"59",
+						"255"
+					],
+					"path": [
+						"rideshare",
+						"session",
+						""
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "http://34.48.59.255/rideshare/secret/",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "73156a0684bb2eb70a0b075697214e53443b7a94",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://34.48.59.255/rideshare/secret/",
+					"protocol": "http",
+					"host": [
+						"34",
+						"48",
+						"59",
+						"255"
+					],
+					"path": [
+						"rideshare",
+						"secret",
 						""
 					]
 				}
