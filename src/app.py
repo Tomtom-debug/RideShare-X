@@ -4,7 +4,7 @@ import json
 from datetime import datetime
 import users_dao
 import os
-# comment
+
 
 app = Flask(__name__)
 db_filename = "cms.db"
@@ -50,6 +50,19 @@ def check_token(request):
         return False,response 
     return True, response
 
+def cache_token(request):
+    """
+    Helper function for getting an active user id 
+    """
+    success,response = check_token(request)
+    if not success:
+        return response
+    session_token=response
+    possible_user = users_dao.get_user_by_session_token(session_token).first()
+    if not possible_user or not possible_user.verify_session_token(session_token):
+        return False, failure_response("Invalid session token")
+    return True, possible_user.id 
+
 #routes here
 @app.route("/")
 def hello_world():
@@ -78,7 +91,7 @@ def register_account():
         return failure_response("User exist already")
     return success_response(user.serialize(),201)
 
-@app.route("/login/", methods=["POST"])
+@app.route("/rideshare/login/", methods=["POST"])
 def login():
     """
     Endpoint for logging in a user
@@ -98,7 +111,7 @@ def login():
     return success_response(user.serialize())
 
 
-@app.route("/session/", methods=["POST"])
+@app.route("rideshare/session/", methods=["POST"])
 def refresh_session():
     """
     Endpoint for updating a user's session
@@ -116,7 +129,7 @@ def refresh_session():
     return success_response(user.serialize())
 
 
-@app.route("/secret/", methods=["GET"])
+@app.route("rideshare/secret/", methods=["GET"])
 def secret_message():
     """
     Endpoint for verifying a session token and returning a secret message
@@ -124,28 +137,24 @@ def secret_message():
     In your project, you will use the same logic for any endpoint that needs 
     authentication
     """
-    success,response = check_token(request)
-    if success is None:
+    success,response = cache_token(request)
+    if not success:
         return response
-    session_token = response
-    possible_user = users_dao.get_user_by_session_token(session_token).first()
-    if not possible_user or not possible_user.verify_session_token(session_token):
-        return False, failure_response("Invalid session token")
+    user_id = response
+    possible_user = Users.query.filter_by(id = user_id).first()
     return success_response({"message":"Hello " + possible_user.first_name})
 
 
-@app.route("/logout/", methods=["POST"])
+@app.route("rideshare/logout/", methods=["POST"])
 def logout():
     """
     Endpoint for logging out a user
     """
-    success,response = check_token(request)
+    success,response = cache_token(request)
     if not success:
         return response
-    session_token=response
-    possible_user = users_dao.get_user_by_session_token(session_token).first()
-    if not possible_user or not possible_user.verify_session_token(session_token):
-        return False, failure_response("Invalid session token")
+    user_id = response
+    possible_user = Users.query.filter_by(id = user_id).first()
     possible_user.session_expiration = datetime.datetime.now()
     db.session.commit()
     return success_response({"message":"You have been logged out"})
@@ -200,14 +209,10 @@ def add_ride():
     """
     add a trip
     """
-    success,response = check_token(request)
+    success,response = cache_token(request)
     if not success:
         return response
-    session_token=response
-    possible_user = users_dao.get_user_by_session_token(session_token).first()
-    if not possible_user or not possible_user.verify_session_token(session_token):
-        return False, failure_response("Invalid session token")
-    driver_id = possible_user.id
+    driver_id = response
     body = json.loads(request.data)
     if "origin" not in body or "destination" not in body or "departure_time" not in body or "available_seats" not in body:
         return failure_response("Missing input", 400)
@@ -234,12 +239,10 @@ def request_ride(ride_id):
     """
     Endpoint for requesting ride by id
     """
-    # getting request data
-    body = json.loads(request.data)
-    user_id = body.get("user_id")
-    #check for missing fields 
-    if user_id is None:
-        return failure_response("Not found")
+    success,response = cache_token(request)
+    if not success:
+        return response
+    user_id = response
     # check if ride and user exist
     ride = Rides.query.filter_by(id=ride_id).first()
     user = Users.query.filter_by(id=user_id).first()
@@ -250,6 +253,14 @@ def request_ride(ride_id):
         return failure_response("No available seats")
     #create new booking if there are seats 
     time = datetime.now()
+    try:
+        departure_time = datetime.strptime(ride.departure_time, '%m-%d-%y %H:%M')
+    except ValueError:
+        return failure_response("Invalid departure time format in database")
+    
+    # Check if the ride is past its departure time
+    if time > departure_time:
+        return failure_response("Ride is unavailable due to past departure time")
     new_booking = Bookings(ride_id=ride_id,passenger_id=user_id,booking_time=time)
     ride.available_seats -= 1
     db.session.add(new_booking)
@@ -257,18 +268,14 @@ def request_ride(ride_id):
     return success_response(new_booking.serialize())
 
 @app.route("/rideshare/rides/driver/")
-def request_ride_by_driver():
+def all_rides_by_driver():
     """
     Endpoint for getting all rides for a driver 
     """
-    success,response = check_token(request)
+    success,response = cache_token(request)
     if not success:
         return response
-    session_token=response
-    possible_user = users_dao.get_user_by_session_token(session_token).first()
-    if not possible_user or not possible_user.verify_session_token(session_token):
-        return False, failure_response("Invalid session token")
-    driver_id = possible_user.id
+    driver_id = response
     rides=[]
     rides_driver = Rides.query.filter_by(driver_id=driver_id).all()
     for ride in rides_driver:
