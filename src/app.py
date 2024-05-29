@@ -111,7 +111,7 @@ def login():
     return success_response(user.serialize())
 
 
-@app.route("rideshare/session/", methods=["POST"])
+@app.route("/rideshare/session/", methods=["POST"])
 def refresh_session():
     """
     Endpoint for updating a user's session
@@ -129,7 +129,7 @@ def refresh_session():
     return success_response(user.serialize())
 
 
-@app.route("rideshare/secret/", methods=["GET"])
+@app.route("/rideshare/secret/", methods=["GET"])
 def secret_message():
     """
     Endpoint for verifying a session token and returning a secret message
@@ -142,7 +142,7 @@ def secret_message():
     return success_response({"message":"Hello " + possible_user.first_name})
 
 
-@app.route("rideshare/logout/", methods=["POST"])
+@app.route("/rideshare/logout/", methods=["POST"])
 def logout():
     """
     Endpoint for logging out a user
