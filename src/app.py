@@ -30,7 +30,7 @@ def extract_token(request):
     """
     Helper function that extracts the token from the header of a request
     """
-    auth_header= request.header.get("Authorization")
+    auth_header= request.headers.get("Authorization")
     if auth_header is None:
         return False, failure_response("Missing Authorization header")
     
