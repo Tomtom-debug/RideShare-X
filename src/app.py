@@ -58,7 +58,7 @@ def cache_token(request):
     if not success:
         return response
     session_token=response
-    possible_user = users_dao.get_user_by_session_token(session_token).first()
+    possible_user = users_dao.get_user_by_session_token(session_token)
     if not possible_user or not possible_user.verify_session_token(session_token):
         return False, failure_response("Invalid session token")
     return True, possible_user.id 
@@ -152,7 +152,7 @@ def logout():
         return response
     user_id = response
     possible_user = Users.query.filter_by(id = user_id).first()
-    possible_user.session_expiration = datetime.datetime.now()
+    possible_user.session_expiration = datetime.now()
     db.session.commit()
     return success_response({"message":"You have been logged out"})
 
@@ -301,7 +301,7 @@ def search_rides():
         if departure_time > time:
             available_rides.append(ride.serialize())
     
-    return success_response({"available rides":rides})
+    return success_response({"available rides":available_rides})
         
 
 if __name__ == "__main__":

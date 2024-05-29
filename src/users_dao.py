@@ -37,7 +37,7 @@ def verify_credentials(username, password):
     if possible_user is None:
         return False, None
     
-    return possible_user.verify_password(possible_user),possible_user
+    return possible_user.verify_password(password),possible_user
 
 
 
