@@ -9,7 +9,7 @@ The app offers a range of features to enhance the user experience:
 - Session Management keeps user data secure with session tokens and refresh tokens.
 
 ## API SPECIFICATION ##
-This document outlines the API endpoints and functionalities for the RideshareX app backend.
+This document outlines the API endpoints and functionalities for the RideshareX app.
 ### Register Account ###
 - **Method:** POST
 - **Endpoint:** */rideshare/register/*
