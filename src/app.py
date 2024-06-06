@@ -1,4 +1,4 @@
-from db import db, Users, Rides, Bookings
+from db import db, Users, Rides, Bookings, Asset
 from flask import Flask, request
 import json
 from datetime import datetime
@@ -302,6 +302,25 @@ def search_rides():
             available_rides.append(ride.serialize())
     
     return success_response({"available rides":available_rides})
+
+@app.route("/upload/", methods=["POST"])
+def upload():
+    """
+    Endpoint for uploading an image to AWS given its base64 form,
+    then storing/returning the URL of that image
+    """
+    body = json.loads(request.data)
+    image_data = body.get("image_data")
+    if image_data is None:
+        return failure_response("No Base64 URL")
+    
+    #create new Asset object 
+    asset = Asset(image_data=image_data)
+    db.session.add(asset)
+    db.session.commit()
+    return success_response(asset.serialize())
+    
+
         
 
 if __name__ == "__main__":
