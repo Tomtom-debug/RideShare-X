@@ -1,13 +1,41 @@
-from db import db, Users, Rides, Bookings, Asset
-from flask import Flask, request
-import json
-from datetime import datetime
-import users_dao
 import os
+import json
+import sqlite3
+from datetime import datetime
+from flask import Flask, request, redirect, url_for, session
+from flask_login import (
+    LoginManager,
+    current_user,
+    login_required,
+    login_user,
+    logout_user,
+)
+from oauthlib.oauth2 import WebApplicationClient
+import requests
 
+# Local imports
+from db import db, Users, Rides, Bookings, Asset
+import users_dao
 
+# Flask app setup
 app = Flask(__name__)
+app.secret_key = os.environ.get("SECRET_KEY") or os.urandom(24)
 db_filename = "cms.db"
+
+# Configuration
+GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", None)
+GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET", None)
+GOOGLE_DISCOVERY_URL = (
+    "https://accounts.google.com/.well-known/openid-configuration"
+)
+
+# User session management setup
+login_manager = LoginManager()
+login_manager.init_app(app)
+
+# OAuth 2 client setup
+client = WebApplicationClient(GOOGLE_CLIENT_ID)
+
 
 app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///%s" % db_filename
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
@@ -16,6 +44,11 @@ app.config["SQLALCHEMY_ECHO"] = True
 db.init_app(app)
 with app.app_context():
     db.create_all()
+
+# Flask-Login helper to retrieve a user from our db
+@login_manager.user_loader
+def load_user(user_id):
+    return Users.get(user_id)
 
 # generalized response formats
 def success_response(data, code=200):
@@ -63,6 +96,15 @@ def cache_token(request):
         return False, failure_response("Invalid session token")
     return True, possible_user.id 
 
+def get_google_provider_cfg():
+    try:
+        response = requests.get(GOOGLE_DISCOVERY_URL)
+        response.raise_for_status()  # Raises an HTTPError if the status is 4xx, 5xx
+        return response.json()
+    except requests.exceptions.RequestException as e:
+        return None 
+    
+
 #routes here
 @app.route("/")
 def hello_world():
@@ -109,6 +151,97 @@ def login():
     user.renew_session()
     db.session.commit()
     return success_response(user.serialize())
+
+@app.route("/rideshare/google/login/")
+def google_login():
+    # Finding out what URL to hit for Google login
+    google_provider_cfg = get_google_provider_cfg()
+    if google_provider_cfg is None:
+        return failure_response("Failed to retrieve the Google provider configuration")
+    authorization_endpoint = google_provider_cfg["authorization_endpoint"]
+
+    # library to construct the request for Google login and provide
+    # scopes that let you retrieve user's profile from Google
+    request_uri = client.prepare_request_uri(
+        authorization_endpoint,
+        redirect_uri=request.base_url + "/callback",
+        scope=["openid", "email", "profile"],
+    )
+    return redirect(request_uri)
+
+@app.route("/login/callback")
+def callback():
+    # Get authorization code Google sent back to you
+    code = request.args.get("code")
+
+    # Find out what URL to hit to get tokens that allow you to ask for
+    # things on behalf of a user
+    google_provider_cfg = get_google_provider_cfg()
+    token_endpoint = google_provider_cfg["token_endpoint"]
+
+    # Prepare and send a request to get tokens
+    token_url, headers, body = client.prepare_token_request(
+        token_endpoint,
+        authorization_response=request.url,
+        redirect_url=request.base_url,
+        code=code
+    )
+    token_response = requests.post(
+        token_url,
+        headers=headers,
+        data=body,
+        auth=(GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET),
+    )
+
+    # Parse the tokens
+    client.parse_request_body_response(json.dumps(token_response.json()))
+
+    # with tokens let's find and hit the URL
+    # from Google that gives you the user's profile information,
+    # including their Google profile image and email
+    userinfo_endpoint = google_provider_cfg["userinfo_endpoint"]
+    uri, headers, body = client.add_token(userinfo_endpoint)
+    userinfo_response = requests.get(uri, headers=headers, data=body)
+
+    # You want to make sure their email is verified.
+    # The user authenticated with Google, authorized your
+    # app, and now you've verified their email through Google!
+    if userinfo_response.json().get("email_verified"):
+        unique_id = userinfo_response.json()["sub"]
+        users_email = userinfo_response.json()["email"]
+        picture = userinfo_response.json()["picture"]
+        first_name = userinfo_response.json()["given_name"]
+        last_name = userinfo_response.json().get("family_name")
+    else:
+        return failure_response("User email not available or not verified by Google.", 400)
+    
+
+    #login user if user already exist in the database 
+    user= Users.query.filter(Users.username == users_email).first()
+    if user:
+        if picture != user.picture_url:
+            user.picture_url = picture
+            db.session.commit()
+        user.renew_session()
+        db.session.commit()
+        return success_response(user.serialize())
+    else:
+         # authenticating username
+        if not users_email.lower().endswith("@cornell.edu"):
+            return failure_response("Invalid username",400)
+        new_user = Users(username = users_email,picture=picture,
+                    first_name=first_name,last_name=last_name)
+        db.session.add(new_user)
+        db.session.commit()
+        return success_response(user.serialize(),201)
+
+    
+#use of Flask-Login to logout
+#@app.route("/logout")
+#@login_required
+#def logout():
+    #logout_user()
+    #return redirect(url_for("hello_world"))
 
 
 @app.route("/rideshare/session/", methods=["POST"])
@@ -303,19 +436,23 @@ def search_rides():
     
     return success_response({"available rides":available_rides})
 
-@app.route("/upload/", methods=["POST"])
+@app.route("/rideshare/upload/", methods=["POST"])
 def upload():
     """
     Endpoint for uploading an image to AWS given its base64 form,
     then storing/returning the URL of that image
     """
+    success,response = cache_token(request)
+    if not success:
+        return response
+    user_id = response
     body = json.loads(request.data)
     image_data = body.get("image_data")
     if image_data is None:
         return failure_response("No Base64 URL")
     
     #create new Asset object 
-    asset = Asset(image_data=image_data)
+    asset = Asset(image_data=image_data, user_id=user_id)
     db.session.add(asset)
     db.session.commit()
     return success_response(asset.serialize())

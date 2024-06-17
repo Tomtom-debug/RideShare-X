@@ -36,7 +36,9 @@ class Users(db.Model):
     username = db.Column(db.String, nullable=False, unique=True)
     first_name = db.Column(db.String, nullable=False)
     last_name = db.Column(db.String, nullable=False)
-    password_digest = db.Column(db.String, nullable=False)
+    password_digest = db.Column(db.String, nullable=True)
+    picture_url = db.Column(db.String, nullable=True)
+
 
 
     # Session information
@@ -48,6 +50,8 @@ class Users(db.Model):
     rides = db.relationship('Rides', backref='driver',  cascade="delete")
     # Relationship to Bookings
     bookings = db.relationship('Bookings', backref='passenger', cascade="delete")
+    #Relationship to user image 
+    picture = db.relationship('Asset', backref='user', cascade="delete")
 
 
     def __init__(self, **kwargs):
@@ -57,6 +61,7 @@ class Users(db.Model):
         self.username = kwargs.get("username")
         self.first_name = kwargs.get("first_name")
         self.last_name = kwargs.get("last_name")
+        self.picture_url = kwargs.get("picture")
         self.password_digest = bcrypt.hashpw(kwargs.get("password").encode("utf8"), bcrypt.gensalt(rounds=13))
         self.renew_session()
 
@@ -103,10 +108,19 @@ class Users(db.Model):
         }
     
     def special_serialize(self):
-        return {
-            "first_name":self.first_name,
-            "last_name":self.last_name
-        }
+        if self.picture_url is None:
+            picture = Asset.query.filter_by(user_id= self.id).first()
+            return {
+                "first_name":self.first_name,
+                "last_name":self.last_name,
+                "picture" : f"{picture.base_url}/{picture.salt}.{picture.extension}"
+            }
+        else:
+            return {
+                "first_name":self.first_name,
+                "last_name":self.last_name,
+                "picture" : self.picture_url
+            }
 
 class Rides(db.Model):
     """
@@ -197,6 +211,7 @@ class Asset(db.Model):
     width = db.Column(db.Integer,nullable= False)
     height = db.Column(db.Integer,nullable= False)
     created_at = db.Column(db.DateTime,nullable = False)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
 
 
     def __init__(self,**kwargs):
@@ -204,6 +219,7 @@ class Asset(db.Model):
         Initializes an Asset object
         """
         self.create(kwargs.get("image_data"))
+        self.user_id = kwargs.get("user_id")
 
     def serialize(self):
         """
